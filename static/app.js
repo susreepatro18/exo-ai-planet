@@ -1,4 +1,5 @@
-const API = "http://127.0.0.1:5000";
+// ✅ Vercel-safe API base (works locally & in production)
+const API = window.location.origin;
 
 /* 3D Planet Animation Canvas */
 function initiate3DPlanets() {
@@ -9,8 +10,6 @@ function initiate3DPlanets() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     
-    let animationFrame = 0;
-    
     class Planet3D {
         constructor(x, y, size, color, speed) {
             this.x = x;
@@ -19,12 +18,10 @@ function initiate3DPlanets() {
             this.color = color;
             this.speed = speed;
             this.rotation = 0;
-            this.depth = Math.random() * 100;
         }
         
         update() {
             this.rotation += this.speed;
-            this.depth = (this.depth + 0.5) % 100;
         }
         
         draw(ctx) {
@@ -32,7 +29,6 @@ function initiate3DPlanets() {
             ctx.translate(this.x, this.y);
             ctx.rotate(this.rotation);
             
-            // Create gradient for planet
             const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
             gradient.addColorStop(0, this.color[0]);
             gradient.addColorStop(1, this.color[1]);
@@ -41,13 +37,6 @@ function initiate3DPlanets() {
             ctx.beginPath();
             ctx.arc(0, 0, this.size, 0, Math.PI * 2);
             ctx.fill();
-            
-            // Draw planet details (stripes, spots)
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2);
-            ctx.stroke();
             
             ctx.restore();
         }
@@ -61,13 +50,11 @@ function initiate3DPlanets() {
     
     function animate() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
         planets.forEach(planet => {
             planet.update();
             planet.draw(ctx);
         });
-        
-        animationFrame = requestAnimationFrame(animate);
+        requestAnimationFrame(animate);
     }
     
     animate();
@@ -78,10 +65,9 @@ function initiate3DPlanets() {
     });
 }
 
-// Initialize 3D planets when page loads
 document.addEventListener('DOMContentLoaded', initiate3DPlanets);
 
-/* Scroll to specific section */
+/* Scroll to section */
 function scrollToSection(sectionId) {
     const section = document.getElementById(sectionId);
     if (section) {
@@ -116,11 +102,18 @@ function predict() {
     })
     .then(res => res.json())
     .then(data => {
+        if (!data || data.error) {
+            alert("Prediction failed");
+            return;
+        }
         document.getElementById("resultTable").classList.remove("hidden");
         document.getElementById("status").innerText = data.label;
         document.getElementById("score").innerText = data.score.toFixed(4);
     })
-    .catch(() => alert("Prediction failed"));
+    .catch(err => {
+        console.error(err);
+        alert("Prediction failed");
+    });
 }
 
 /* Show ranking */
@@ -130,34 +123,40 @@ function showRanking() {
     .then(data => {
         const table = document.getElementById("rankTable");
         const tbody = table.querySelector("tbody");
-
         tbody.innerHTML = "";
 
-        data.forEach((row, i) => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td>${row.pl_rade}</td>
-                    <td>${row.pl_bmasse}</td>
-                    <td>${row.pl_eqt}</td>
-                    <td>${row.pl_density}</td>
-                    <td>${row.pl_orbper}</td>
-                    <td>${row.pl_orbsmax}</td>
-                    <td>${row.st_luminosity}</td>
-                    <td>${row.pl_insol}</td>
-                    <td>${row.st_teff}</td>
-                    <td>${row.st_mass}</td>
-                    <td>${row.st_rad}</td>
-                    <td>${row.st_met}</td>
-                    <td>${row.score.toFixed(4)}</td>
-                </tr>
-            `;
-        });
+        if (!Array.isArray(data) || data.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='14'>No rankings available yet.</td></tr>";
+        } else {
+            data.forEach((row, i) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${row.pl_rade}</td>
+                        <td>${row.pl_bmasse}</td>
+                        <td>${row.pl_eqt}</td>
+                        <td>${row.pl_density}</td>
+                        <td>${row.pl_orbper}</td>
+                        <td>${row.pl_orbsmax}</td>
+                        <td>${row.st_luminosity}</td>
+                        <td>${row.pl_insol}</td>
+                        <td>${row.st_teff}</td>
+                        <td>${row.st_mass}</td>
+                        <td>${row.st_rad}</td>
+                        <td>${row.st_met}</td>
+                        <td>${row.score.toFixed(4)}</td>
+                    </tr>
+                `;
+            });
+        }
 
-        document.getElementById("rankTable").classList.remove("hidden");
+        table.classList.remove("hidden");
         document.getElementById("closeBtn").classList.remove("hidden");
     })
-    .catch(() => alert("Ranking failed"));
+    .catch(err => {
+        console.error(err);
+        alert("Ranking failed");
+    });
 }
 
 /* Close ranking */
@@ -165,4 +164,3 @@ function closeRanking() {
     document.getElementById("rankTable").classList.add("hidden");
     document.getElementById("closeBtn").classList.add("hidden");
 }
-
