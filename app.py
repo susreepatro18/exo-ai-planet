@@ -76,44 +76,14 @@ def predict():
         if not data:
             return jsonify({"error": "No input data"}), 200
 
-        # Normalize keys
         normalized = {k.strip().lower(): v for k, v in data.items()}
-
-        # Build feature vector in model order
         X = np.array([[float(normalized[col.lower()]) for col in feature_cols]])
 
-        # 🔑 SAFE prediction (no logic change)
+        # 🔑 FINAL SAFE FIX
         if hasattr(model, "predict_proba"):
             score = float(model.predict_proba(X)[0][1])
         else:
             score = float(model.predict(X)[0])
-
-        # 🚫 Skip DB write on Vercel (serverless-safe)
-        if not IS_VERCEL:
-            conn = get_db()
-            conn.execute("""
-                INSERT INTO predictions (
-                    pl_rade, pl_bmasse, pl_eqt, pl_density,
-                    pl_orbper, pl_orbsmax, st_luminosity,
-                    pl_insol, st_teff, st_mass, st_rad, st_met, score
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (
-                normalized.get("pl_rade"),
-                normalized.get("pl_bmasse"),
-                normalized.get("pl_eqt"),
-                normalized.get("pl_density"),
-                normalized.get("pl_orbper"),
-                normalized.get("pl_orbsmax"),
-                normalized.get("st_luminosity"),
-                normalized.get("pl_insol"),
-                normalized.get("st_teff"),
-                normalized.get("st_mass"),
-                normalized.get("st_rad"),
-                normalized.get("st_met"),
-                score
-            ))
-            conn.commit()
-            conn.close()
 
         return jsonify({
             "label": "Habitable" if score >= 0.7 else "Not Habitable",
@@ -123,6 +93,7 @@ def predict():
     except Exception as e:
         print("🔥 PREDICT ERROR:", e)
         return jsonify({"error": "Prediction failed"}), 500
+
 
 @app.route("/ranking", methods=["GET"])
 def ranking():
