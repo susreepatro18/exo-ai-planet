@@ -1,5 +1,4 @@
 import os
-import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
@@ -15,10 +14,7 @@ CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 # ======================
-# Lazy-loaded model
 # Lazy-loaded model
 # ======================
 model = None
@@ -29,22 +25,12 @@ def load_model():
     if model is None or feature_cols is None:
         model = joblib.load(os.path.join(BASE_DIR, "habitability_model.pkl"))
         feature_cols = joblib.load(os.path.join(BASE_DIR, "model_features.pkl"))
-model = None
-feature_cols = None
-
-def load_model():
-    global model, feature_cols
-    if model is None or feature_cols is None:
-        model = joblib.load(os.path.join(BASE_DIR, "habitability_model.pkl"))
-        feature_cols = joblib.load(os.path.join(BASE_DIR, "model_features.pkl"))
-
-DB_NAME = os.path.join(BASE_DIR, "exoplanets.db")
-DB_NAME = os.path.join(BASE_DIR, "exoplanets.db")
 
 # ======================
-# Database helpers (serverless-safe)
-# Database helpers (serverless-safe)
+# Database helpers
 # ======================
+DB_NAME = os.path.join(BASE_DIR, "exoplanets.db")
+
 def get_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -68,7 +54,6 @@ def get_db():
     """)
     conn.commit()
     return conn
-    return conn
 
 # ======================
 # Routes
@@ -77,13 +62,10 @@ def get_db():
 def home():
     return app.send_static_file("index.html")
 
-
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        load_model()   # ✅ THIS IS WHERE IT GOES
-
-        load_model()   # ✅ THIS IS WHERE IT GOES
+        load_model()
 
         data = request.json
         X = np.array([[float(data[col]) for col in feature_cols]])
@@ -149,14 +131,6 @@ def ranking():
             ],
             keep='first'
         ).head(10)
-        df_unique = df.drop_duplicates(
-            subset=[
-                'pl_rade', 'pl_bmasse', 'pl_eqt', 'pl_density',
-                'pl_orbper', 'pl_orbsmax', 'st_luminosity',
-                'pl_insol', 'st_teff', 'st_mass', 'st_rad', 'st_met'
-            ],
-            keep='first'
-        ).head(10)
 
         return jsonify(df_unique.to_dict(orient="records"))
 
@@ -165,8 +139,7 @@ def ranking():
         return jsonify({"error": str(e)}), 500
 
 # ======================
-# Run server (local only)
-# Run server (local only)
+# Local run only
 # ======================
 if __name__ == "__main__":
     app.run(debug=True)
