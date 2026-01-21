@@ -11,8 +11,15 @@ CORS(app)
 # ======================
 # Load model & features
 # ======================
-model = joblib.load("habitability_model.pkl")
-feature_cols = joblib.load("model_features.pkl")
+model = None
+feature_cols = None
+
+def load_model():
+    global model, feature_cols
+    if model is None or feature_cols is None:
+        model = joblib.load(os.path.join(BASE_DIR, "habitability_model.pkl"))
+        feature_cols = joblib.load(os.path.join(BASE_DIR, "model_features.pkl"))
+
 
 DB_NAME = "exoplanets.db"
 
