@@ -68,41 +68,29 @@ def home():
     return app.send_static_file("index.html")
 
 @app.route("/predict", methods=["POST"])
-@app.route("/predict", methods=["POST"])
 def predict():
     try:
         load_model()
         data = request.get_json(silent=True)
 
         if not data:
-            return jsonify({"error": "No input data"}), 200
+            return jsonify({"error": "No input data"}), 400
 
-        # normalize input keys
-        normalized = {k.strip().lower(): float(v) for k, v in data.items()}
+        # Normalize keys
+        normalized = {k.strip().lower(): v for k, v in data.items()}
 
-        # DEFAULT VALUES (neutral / Earth-like)
-        DEFAULTS = {
-            "pl_rade": 1.0,
-            "pl_bmasse": 1.0,
-            "pl_eqt": 288,
-            "pl_density": 5.5,
-            "pl_orbper": 365,
-            "pl_orbsmax": 1.0,
-            "st_luminosity": 1.0,
-            "pl_insol": 1.0,
-            "st_teff": 5772,
-            "st_mass": 1.0,
-            "st_rad": 1.0,
-            "st_met": 0.0
-        }
+        # 🔑 SAFE FEATURE VECTOR (THIS FIXES EVERYTHING)
+        values = []
+        for col in feature_cols:
+            key = col.lower()
+            try:
+                values.append(float(normalized.get(key, 0.0)))
+            except ValueError:
+                values.append(0.0)
 
-        # build feature vector safely (NO KeyError now)
-        X = np.array([[
-            float(normalized.get(col.lower(), DEFAULTS[col]))
-            for col in feature_cols
-        ]])
+        X = np.array([values])
 
-        # prediction (unchanged logic)
+        # Predict safely
         if hasattr(model, "predict_proba"):
             score = float(model.predict_proba(X)[0][1])
         else:
@@ -110,7 +98,7 @@ def predict():
 
         return jsonify({
             "label": "Habitable" if score >= 0.7 else "Not Habitable",
-            "score": round(score, 4)
+            "score": score
         }), 200
 
     except Exception as e:
