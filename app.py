@@ -71,26 +71,16 @@ def predict():
         if not data:
             return jsonify({"error": "No input data"}), 200
 
-        # 🔑 Feature mapping (frontend → model)
-        feature_map = {
-            "pl_rade": "pl_rade",
-            "pl_bmasse": "pl_bmasse",
-            "pl_eqt": "pl_eqt",
-            "pl_density": "pl_density",
-            "pl_orbper": "pl_orbper",
-            "pl_orbsmax": "pl_orbsmax",
-            "st_luminosity": "st_luminosity",
-            "pl_insol": "pl_insol",
-            "st_teff": "st_teff",
-            "st_mass": "st_mass",
-            "st_rad": "st_rad",
-            "st_met": "st_met"
-        }
-
+        # 🔑 CRITICAL FIX: use model feature order
         try:
-            X = np.array([[float(data[key]) for key in feature_map]])
-        except Exception as e:
-            return jsonify({"error": "Invalid or missing inputs"}), 200
+            X = np.array([[
+                float(data[col]) for col in feature_cols
+            ]])
+        except KeyError as e:
+            print("Missing feature:", e)
+            return jsonify({"error": f"Missing feature {str(e)}"}), 200
+        except ValueError:
+            return jsonify({"error": "Invalid input values"}), 200
 
         score = float(model.predict_proba(X)[0][1])
 
@@ -127,34 +117,3 @@ def predict():
     except Exception as e:
         print("PREDICT ERROR:", e)
         return jsonify({"error": "Prediction failed"}), 200
-
-@app.route("/ranking", methods=["GET"])
-def ranking():
-    try:
-        conn = get_db()
-        df = pd.read_sql("""
-            SELECT
-                pl_rade, pl_bmasse, pl_eqt, pl_density,
-                pl_orbper, pl_orbsmax, st_luminosity,
-                pl_insol, st_teff, st_mass, st_rad, st_met,
-                score
-            FROM predictions
-            ORDER BY score DESC
-            LIMIT 10
-        """, conn)
-        conn.close()
-
-        if df.empty:
-            return jsonify([]), 200
-
-        return jsonify(df.to_dict(orient="records")), 200
-
-    except Exception as e:
-        print("RANKING ERROR:", e)
-        return jsonify([]), 200
-
-# ======================
-# Local run only
-# ======================
-if __name__ == "__main__":
-    app.run(debug=True)
