@@ -109,3 +109,36 @@ The dataset is cleaned and preprocessed, and the trained model is exported and u
 
 ## 🗂️ Project Structure
 
+ExoAI-Planet/
+├── static/
+├── .gitignore
+├── Procfile
+├── app.py
+├── build.sh
+├── habitability_model.pkl
+├── model_features.pkl
+├── render.yaml
+├── requirements.txt
+├── runtime.txt
+├── supabase_schema.sql
+├── test_endpoints.py
+├── vercel.json
+└── README.md
+
+
+---
+
+## 🌐 Live Deployment
+
+🔗 https://exo-ai-planet-vc13.onrender.com/
+
+> ⏳ Note: The free Render instance may take a few seconds to start on the first request.
+
+---
+
+## 🔮 Future Enhancements
+
+- Integrate NASA Exoplanet Archive API
+- Add more astrophysical features
+- Improve analytics and visualization
+- Experiment with advanced machine learning models
