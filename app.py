@@ -41,7 +41,7 @@ model = None
 feature_cols = None
 
 # ======================
-# SAFE model loader (NO dummy model)
+# SAFE model loader
 # ======================
 def load_model():
     global model, feature_cols
@@ -52,14 +52,18 @@ def load_model():
     model_path = os.path.join(BASE_DIR, "habitability_model.pkl")
     features_path = os.path.join(BASE_DIR, "model_features.pkl")
 
-    if not os.path.exists(model_path) or not os.path.exists(features_path):
-        raise RuntimeError("❌ Trained model files missing in deployment")
+    if not os.path.exists(model_path):
+        raise RuntimeError("❌ habitability_model.pkl missing")
+
+    if not os.path.exists(features_path):
+        raise RuntimeError("❌ model_features.pkl missing")
 
     model = joblib.load(model_path)
     feature_cols = joblib.load(features_path)
 
     print("✅ Model loaded:", type(model).__name__)
-    print("📋 Features:", feature_cols)
+    print("📋 Model features:", feature_cols)
+    print("🔍 Has predict_proba:", hasattr(model, "predict_proba"))
 
 # ======================
 # Routes
@@ -83,6 +87,7 @@ def predict():
     if not data:
         return jsonify({"error": "No input data"}), 400
 
+    # normalize keys
     normalized = {k.lower(): v for k, v in data.items()}
 
     values = []
@@ -95,11 +100,11 @@ def predict():
         else:
             try:
                 values.append(float(normalized[col]))
-            except:
+            except Exception:
                 missing.append(col)
                 values.append(0.0)
 
-    # ❌ DO NOT fake predictions
+    # ❌ No fake prediction
     if missing:
         return jsonify({
             "error": "Missing required features",
@@ -108,20 +113,37 @@ def predict():
 
     X = pd.DataFrame([values], columns=feature_cols)
 
-    # ✅ REAL prediction
-    proba = model.predict_proba(X)
-    score = float(proba[0][1])
+    # ======================
+    # SAFE prediction (NO CRASH)
+    # ======================
+    try:
+        if hasattr(model, "predict_proba"):
+            proba = model.predict_proba(X)
+            score = float(proba[0][1])
+        else:
+            pred = model.predict(X)[0]
+            score = float(pred)
+    except Exception as e:
+        return jsonify({
+            "error": "Model prediction failed",
+            "details": str(e)
+        }), 500
 
     label = "Habitable" if score >= 0.7 else "Not Habitable"
 
+    # ======================
     # Save to DB (Render only)
+    # ======================
     if supabase and not IS_VERCEL:
-        supabase.table("predictions").insert({
-            "pl_name": normalized.get("pl_name", "Unknown"),
-            "prediction_type": "habitability",
-            "prediction_value": label,
-            "confidence_score": round(score, 4)
-        }).execute()
+        try:
+            supabase.table("predictions").insert({
+                "pl_name": normalized.get("pl_name", "Unknown"),
+                "prediction_type": "habitability",
+                "prediction_value": label,
+                "confidence_score": round(score, 4)
+            }).execute()
+        except Exception as e:
+            print("⚠️ Supabase insert failed:", e)
 
     return jsonify({
         "label": label,
@@ -136,15 +158,21 @@ def ranking():
     if not supabase:
         return jsonify({"rankings": []}), 200
 
-    response = supabase.table("predictions") \
-        .select("*") \
-        .order("confidence_score", desc=True) \
-        .limit(100) \
-        .execute()
-
-    return jsonify({
-        "rankings": response.data or []
-    }), 200
+    try:
+        response = (
+            supabase
+            .table("predictions")
+            .select("*")
+            .order("confidence_score", desc=True)
+            .limit(100)
+            .execute()
+        )
+        return jsonify({"rankings": response.data or []}), 200
+    except Exception as e:
+        return jsonify({
+            "rankings": [],
+            "error": str(e)
+        }), 200
 
 # ======================
 # Run local
